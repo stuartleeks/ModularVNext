@@ -3,7 +3,7 @@
     "dependencies": {
         "Microsoft.AspNet.Mvc": "6.0.0-beta3",
     },
-
+    "resources": "Views/**",
     "frameworks" : {
         "aspnet50" : { 
             "dependencies": {

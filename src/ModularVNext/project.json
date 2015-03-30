@@ -4,7 +4,7 @@
     "version": "1.0.0-*",
     "dependencies": {
         "Microsoft.AspNet.Mvc": "6.0.0-beta3",
-        /* "Microsoft.AspNet.Mvc.WebApiCompatShim": "6.0.0-beta3", */
+        "Microsoft.AspNet.Mvc.TagHelpers":  "6.0.0-beta3",
         "Microsoft.AspNet.Diagnostics": "1.0.0-beta3",
         "Microsoft.AspNet.Server.IIS": "1.0.0-beta3",
         "Microsoft.AspNet.Server.WebListener": "1.0.0-beta3",
@@ -20,11 +20,11 @@
         /* Change the port number when you are self hosting this application */
         "web": "Microsoft.AspNet.Hosting --server Microsoft.AspNet.Server.WebListener --server.urls http://localhost:5000",
         "gen": "Microsoft.Framework.CodeGeneration",
-        "ef":  "EntityFramework.Commands"
+        "ef": "EntityFramework.Commands"
     },
     "frameworks": {
         "aspnet50": { },
-        "aspnetcore50": { }
+        //"aspnetcore50": {}
     },
     "exclude": [
         "wwwroot",
