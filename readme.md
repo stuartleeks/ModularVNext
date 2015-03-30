@@ -26,4 +26,4 @@ The serving of module content is enabled through a CompositeFileProvider. Out of
 
 There are multiple PhysicalFileProviders included in the composite provider. These are determined by the configuration value "additionalFileProviderBasePaths". Adding paths here for modules that you are developing allows MVC to locate and serve content from those paths. (As noted in the code, this is not recommended for production).
 
-The second mechanism that is used is to add EmbeddedFileProviders that serve views from compiled resources. In the project.json for Module1, the Views folder is marked for being compiled in as a resource. 
+The second mechanism that is used is to add EmbeddedFileProviders that serve views from compiled resources. In the project.json for Module1, the Views folder is marked for being compiled in as a resource. Ideally this would be coupled with a module discovery mechanism.
