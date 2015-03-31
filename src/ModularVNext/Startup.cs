@@ -44,7 +44,11 @@ namespace ModularVNext
 
             // TODO - replace this with a discovery mechanism!
             // NOTE: Type.Assembly doesn't exist in coreCLR. Need to look into that! For now, not targeting CoreCLR
-            var modulesAssemblies = new[] { typeof(Module1.Controllers.Module1Controller).Assembly };
+            var modulesAssemblies = new[]
+            {
+                typeof(Module1.Controllers.Module1Controller).Assembly,
+                typeof(Module2.Controllers.WeatherController).Assembly
+            };
             var resourceFileProviders = modulesAssemblies.Select(a => new EmbeddedFileProvider(a));
 
 
@@ -55,7 +59,6 @@ namespace ModularVNext
                         .Concat(redirectedFileProviders)
                         .Concat(resourceFileProviders)
                         );
-                //o.ViewLocationExpanders.Add(typeof(Infrastructure.ModuleViewLocationExpander));
             });
 
             services.AddInstance(Configuration);
@@ -79,6 +82,11 @@ namespace ModularVNext
 
             app.UseMvc(routes =>
             {
+                routes.MapRoute(
+                    name: "areaRoute",
+                    template: "{area:exists}/{controller}/{action}",
+                    defaults: new { controller = "Home", action = "Index" }
+                    );
                 routes.MapRoute(
                     name: "default",
                     template: "{controller}/{action}/{id?}",
