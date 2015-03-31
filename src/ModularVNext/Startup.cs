@@ -7,6 +7,7 @@ using Microsoft.AspNet.Diagnostics;
 using Microsoft.AspNet.FileProviders;
 using Microsoft.AspNet.Hosting;
 using Microsoft.AspNet.Mvc.Razor;
+using Microsoft.AspNet.StaticFiles;
 using Microsoft.Framework.ConfigurationModel;
 using Microsoft.Framework.DependencyInjection;
 using Microsoft.Framework.DependencyInjection.Fallback;
@@ -20,11 +21,12 @@ namespace ModularVNext
 {
     public class Startup
     {
-        private readonly string WebRoot;
+        private CompositeFileProvider _compositeFileProvider;
+        private readonly string ApplicationBasePath;
 
-        public Startup(IHostingEnvironment env)
+        public Startup(IHostingEnvironment hostingEnvironment, IApplicationEnvironment applicationEnvironment)
         {
-            WebRoot = env.WebRoot;
+            ApplicationBasePath = applicationEnvironment.ApplicationBasePath;
             Configuration = new Configuration()
                 .AddJsonFile("config.json")
                 .AddEnvironmentVariables();
@@ -39,7 +41,7 @@ namespace ModularVNext
             // TODO - probably want to set this to be debug only as it allows serving content outside the root directory
             var basePaths = Configuration.Get("additionalFileProviderBasePaths")?.Split(';') ?? new string[] { };
             var redirectedFileProviders = basePaths
-                .Select(path => Path.IsPathRooted(path) ? path : Path.Combine(WebRoot, path))
+                .Select(path => Path.IsPathRooted(path) ? path : Path.Combine(ApplicationBasePath, path))
                 .Select(root => new PhysicalFileProvider(root));
 
             // TODO - replace this with a discovery mechanism!
@@ -49,16 +51,20 @@ namespace ModularVNext
                 typeof(Module1.Controllers.Module1Controller).Assembly,
                 typeof(Module2.Controllers.WeatherController).Assembly
             };
-            var resourceFileProviders = modulesAssemblies.Select(a => new EmbeddedFileProvider(a));
+            var resourceFileProviders = modulesAssemblies.Select(a => new SafeEmbeddedFileProvider(a));
 
 
-            services.Configure<RazorViewEngineOptions>(o =>
-            {
-                o.FileProvider = new CompositeFileProvider(
-                    o.FileProvider
+            IFileProvider rootProvider = new PhysicalFileProvider(ApplicationBasePath);
+            _compositeFileProvider = new CompositeFileProvider(
+                    //o.FileProvider
+                    rootProvider
                         .Concat(redirectedFileProviders)
                         .Concat(resourceFileProviders)
                         );
+
+            services.Configure<RazorViewEngineOptions>(o =>
+            {
+                o.FileProvider = _compositeFileProvider;
             });
 
             services.AddInstance(Configuration);
@@ -78,7 +84,10 @@ namespace ModularVNext
                 app.UseErrorHandler("/Home/Error");
             }
 
-            app.UseStaticFiles();
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = _compositeFileProvider
+            });
 
             app.UseMvc(routes =>
             {
