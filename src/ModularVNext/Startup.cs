@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Microsoft.AspNet.Builder;
 using Microsoft.AspNet.Diagnostics;
 using Microsoft.AspNet.FileProviders;
 using Microsoft.AspNet.Hosting;
+using Microsoft.AspNet.Mvc;
 using Microsoft.AspNet.Mvc.Razor;
 using Microsoft.AspNet.StaticFiles;
 using Microsoft.Framework.ConfigurationModel;
@@ -21,11 +23,18 @@ namespace ModularVNext
 {
     public class Startup
     {
-        private CompositeFileProvider _compositeFileProvider;
+        private IFileProvider _modulesFileProvider;
         private readonly string ApplicationBasePath;
+        private readonly IAssemblyLoadContextAccessor _assemblyLoadContextAccessor;
+        private readonly IAssemblyLoaderContainer _assemblyLoaderContainer;
 
-        public Startup(IHostingEnvironment hostingEnvironment, IApplicationEnvironment applicationEnvironment)
+        public Startup(IHostingEnvironment hostingEnvironment,
+            IApplicationEnvironment applicationEnvironment,
+            IAssemblyLoaderContainer assemblyLoaderContainer,
+            IAssemblyLoadContextAccessor assemblyLoadContextAccessor)
         {
+            _assemblyLoadContextAccessor = assemblyLoadContextAccessor;
+            _assemblyLoaderContainer = assemblyLoaderContainer;
             ApplicationBasePath = applicationEnvironment.ApplicationBasePath;
             Configuration = new Configuration()
                 .AddJsonFile("config.json")
@@ -36,38 +45,26 @@ namespace ModularVNext
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvc();
-
-            // TODO - probably want to set this to be debug only as it allows serving content outside the root directory
             var basePaths = Configuration.Get("additionalFileProviderBasePaths")?.Split(';') ?? new string[] { };
-            var redirectedFileProviders = basePaths
-                .Select(path => Path.IsPathRooted(path) ? path : Path.Combine(ApplicationBasePath, path))
-                .Select(root => new PhysicalFileProvider(root));
+            var modulesPath = Path.Combine(ApplicationBasePath, Configuration.Get("moduleLoadPath"));
 
-            // TODO - replace this with a discovery mechanism!
-            // NOTE: Type.Assembly doesn't exist in coreCLR. Need to look into that! For now, not targeting CoreCLR
-            var modulesAssemblies = new[]
-            {
-                typeof(Module1.Controllers.Module1Controller).Assembly,
-                typeof(Module2.Controllers.WeatherController).Assembly
-            };
-            var resourceFileProviders = modulesAssemblies.Select(a => new SafeEmbeddedFileProvider(a));
+            var moduleAssemblies = LoadAssembliesFrom(modulesPath, _assemblyLoaderContainer, _assemblyLoadContextAccessor);
+
+            _modulesFileProvider = GetModulesFileProvider(basePaths, moduleAssemblies);
 
 
-            IFileProvider rootProvider = new PhysicalFileProvider(ApplicationBasePath);
-            _compositeFileProvider = new CompositeFileProvider(
-                    //o.FileProvider
-                    rootProvider
-                        .Concat(redirectedFileProviders)
-                        .Concat(resourceFileProviders)
-                        );
+            services.AddInstance(Configuration);
+
+            services.AddMvc();
 
             services.Configure<RazorViewEngineOptions>(o =>
             {
-                o.FileProvider = _compositeFileProvider;
+                o.FileProvider = _modulesFileProvider;
             });
 
-            services.AddInstance(Configuration);
+            services.AddInstance(new ModuleAssemblyLocator(moduleAssemblies));
+            services.AddTransient<DefaultAssemblyProvider>();
+            services.AddTransient<IAssemblyProvider, ModuleAwareAssemblyProvider>();
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerfactory)
@@ -86,7 +83,7 @@ namespace ModularVNext
 
             app.UseStaticFiles(new StaticFileOptions
             {
-                FileProvider = _compositeFileProvider
+                FileProvider = _modulesFileProvider
             });
 
             app.UseMvc(routes =>
@@ -101,6 +98,39 @@ namespace ModularVNext
                     template: "{controller}/{action}/{id?}",
                     defaults: new { controller = "Home", action = "Index" });
             });
+        }
+
+        private List<Assembly> LoadAssembliesFrom(string modulesDirectory,
+            IAssemblyLoaderContainer assemblyLoaderContainer,
+            IAssemblyLoadContextAccessor loadContextAccessor)
+        {
+            var assemblies = new List<Assembly>();
+            var loadContext = _assemblyLoadContextAccessor.GetLoadContext(typeof(Startup).GetTypeInfo().Assembly);
+            using (assemblyLoaderContainer.AddLoader(new DirectoryAssemblyLoader(modulesDirectory, loadContext)))
+            {
+                foreach (var modulePath in Directory.EnumerateFiles(modulesDirectory, "*.dll"))
+                {
+                    var name = Path.GetFileNameWithoutExtension(modulePath);
+                    assemblies.Add(loadContext.Load(name));
+                }
+            }
+            return assemblies;
+        }
+        private IFileProvider GetModulesFileProvider(string[] basePaths, List<Assembly> moduleAssemblies)
+        {
+            // TODO - probably want to set this to be debug only as it allows serving content outside the root directory
+            var redirectedFileProviders = basePaths
+                .Select(path => Path.IsPathRooted(path) ? path : Path.Combine(ApplicationBasePath, path))
+                .Select(root => new PhysicalFileProvider(root));
+
+            var resourceFileProviders = moduleAssemblies.Select(a => new SafeEmbeddedFileProvider(a));
+
+            IFileProvider rootProvider = new PhysicalFileProvider(ApplicationBasePath);
+            return new CompositeFileProvider(
+                    rootProvider
+                        .Concat(redirectedFileProviders)
+                        .Concat(resourceFileProviders)
+                        );
         }
     }
 }

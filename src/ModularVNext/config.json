@@ -1,3 +1,4 @@
 {
-    "additionalFileProviderBasePaths": "..\\Module1;..\\Module2"
+    "additionalFileProviderBasePaths": "..\\Module1;..\\Module2",
+    "moduleLoadPath" :  "artifacts\\bin\\modules"
 }

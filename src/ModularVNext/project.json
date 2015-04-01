@@ -14,8 +14,9 @@
         "Microsoft.Framework.Logging": "1.0.0-beta3",
         "Microsoft.Framework.Logging.Console": "1.0.0-beta3",
         "Microsoft.VisualStudio.Web.BrowserLink.Loader": "14.0.0-beta3",
-        "Module1": "",
-        "Module2": ""
+        "Microsoft.Framework.Runtime.Interfaces": "1.0.0-beta3"
+        //,"Module1": ""
+        //,"Module2": ""
     },
     "commands": {
         /* Change the port number when you are self hosting this application */
@@ -25,7 +26,7 @@
     },
     "frameworks": {
         "aspnet50": { },
-        //"aspnetcore50": {}
+        "aspnetcore50": {}
     },
     "exclude": [
         "wwwroot",
