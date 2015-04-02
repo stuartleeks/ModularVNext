@@ -106,7 +106,7 @@ namespace ModularVNext
         {
             var assemblies = new List<Assembly>();
             var loadContext = _assemblyLoadContextAccessor.GetLoadContext(typeof(Startup).GetTypeInfo().Assembly);
-            using (assemblyLoaderContainer.AddLoader(new DirectoryAssemblyLoader(modulesDirectory, loadContext)))
+            using (assemblyLoaderContainer.AddLoader(new DirectoryLoader(modulesDirectory, loadContext)))
             {
                 foreach (var modulePath in Directory.EnumerateFiles(modulesDirectory, "*.dll"))
                 {
